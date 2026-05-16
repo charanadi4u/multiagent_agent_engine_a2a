@@ -94,6 +94,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master'))
     env:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
@@ -113,15 +114,25 @@ jobs:
         shell: bash
         run: |
           STORAGE_BUCKET="${GOOGLE_CLOUD_STORAGE_BUCKET:-$GCS_BUCKET_NAME}"
-          if [[ -n "$GCP_PROJECT_ID" && -n "$GCP_WORKLOAD_IDENTITY_PROVIDER" && -n "$GCP_SERVICE_ACCOUNT" && -n "$STORAGE_BUCKET" ]]; then
+          if [[ -n "$GCP_PROJECT_ID" && -n "$GCP_SA_KEY" && -n "$STORAGE_BUCKET" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "auth_mode=service_account_key" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$GCP_PROJECT_ID" && -n "$GCP_WORKLOAD_IDENTITY_PROVIDER" && -n "$GCP_SERVICE_ACCOUNT" && -n "$STORAGE_BUCKET" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "auth_mode=workload_identity" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping Agent Engine deploy. Configure GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT, and GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME secrets to enable it."
+            echo "Skipping Agent Engine deploy. Configure GCP_PROJECT_ID, GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME, and either GCP_SA_KEY or GCP_WORKLOAD_IDENTITY_PROVIDER plus GCP_SERVICE_ACCOUNT secrets to enable it."
           fi
 
-      - name: Authenticate to Google Cloud
-        if: steps.gcp-config.outputs.enabled == 'true'
+      - name: Authenticate to Google Cloud with service account key
+        if: steps.gcp-config.outputs.auth_mode == 'service_account_key'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GCP_SA_KEY }}
+
+      - name: Authenticate to Google Cloud with Workload Identity
+        if: steps.gcp-config.outputs.auth_mode == 'workload_identity'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
