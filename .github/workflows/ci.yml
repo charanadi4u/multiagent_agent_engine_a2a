@@ -159,3 +159,12 @@ jobs:
         if: steps.gcp-config.outputs.enabled == 'true'
         run: |
           python deploy/deploy.py
+
+      - name: Print recent Agent Engine logs on failure
+        if: failure() && steps.gcp-config.outputs.enabled == 'true'
+        run: |
+          gcloud logging read \
+            'resource.type=("aiplatform.googleapis.com/ReasoningEngine" OR "aiplatform.googleapis.com/ReasoningEngineExecution")' \
+            --project="$GCP_PROJECT_ID" \
+            --limit=50 \
+            --format='value(timestamp,severity,textPayload,jsonPayload.message)'
