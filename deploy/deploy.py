@@ -53,7 +53,7 @@ remote_app = client.agent_engines.create(
         "requirements": (REPO_ROOT / "requirements.txt").read_text().splitlines()
         + [wheel_requirement],
         "extra_packages": [
-            str(wheel_path),
+            wheel_requirement,
         ],
         "env_vars": {
             "APP_VERTEX_PROJECT": PROJECT_ID,
