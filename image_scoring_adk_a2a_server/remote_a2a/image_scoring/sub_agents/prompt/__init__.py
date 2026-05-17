@@ -1,1 +1,1 @@
-from .prompt_agent import image_generation_prompt_agent
+from .prompt_agent import image_generation_prompt_agent as image_generation_prompt_agent

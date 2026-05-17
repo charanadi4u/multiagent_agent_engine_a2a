@@ -11,7 +11,7 @@ PACKAGE_DIR = AGENTS_ROOT / "image_scoring"
 
 sys.path.insert(0, str(AGENTS_ROOT))
 
-from image_scoring.agent import root_agent
+from image_scoring.agent import root_agent  # noqa: E402
 
 # Load local environment variables when running outside CI.
 load_dotenv(PACKAGE_DIR / ".env")
@@ -24,11 +24,11 @@ STAGING_BUCKET = f"gs://{STORAGE_BUCKET}" if STORAGE_BUCKET else None
 if not PROJECT_ID:
     raise RuntimeError("GOOGLE_CLOUD_PROJECT is required to deploy to Agent Engine.")
 if not STAGING_BUCKET:
-    raise RuntimeError("GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME is required to deploy to Agent Engine.")
+    raise RuntimeError(
+        "GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME is required to deploy to Agent Engine."
+    )
 
-from vertexai import agent_engines
-
-client=vertexai.Client(
+client = vertexai.Client(
     project=PROJECT_ID,
     location=LOCATION,
 )
@@ -43,7 +43,7 @@ remote_app = client.agent_engines.create(
         "extra_packages": [
             str(PACKAGE_DIR),
         ],
-        "env_vars":{"GCS_BUCKET_NAME": STORAGE_BUCKET}
+        "env_vars": {"GCS_BUCKET_NAME": STORAGE_BUCKET},
     }
 )
 

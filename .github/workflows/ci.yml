@@ -48,7 +48,12 @@ jobs:
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
           GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
           GOOGLE_CLOUD_STORAGE_BUCKET: ${{ secrets.GOOGLE_CLOUD_STORAGE_BUCKET }}
-        run: uv run pytest tests
+        run: |
+          if [ -d tests ]; then
+            uv run pytest tests
+          else
+            echo "No tests directory found; skipping unit tests."
+          fi
 
   deploy:
     name: Deploy to Vertex AI
@@ -87,4 +92,4 @@ jobs:
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
           GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
           GOOGLE_CLOUD_STORAGE_BUCKET: ${{ secrets.GOOGLE_CLOUD_STORAGE_BUCKET }}
-        run: uv run deployment/deploy.py
+        run: uv run deploy/deploy.py

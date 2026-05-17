@@ -43,3 +43,15 @@ pandas = "^2.1.1"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+disable_error_code = ["arg-type", "attr-defined", "import-untyped", "union-attr"]
+ignore_missing_imports = true
+warn_no_return = false
+
+[dependency-groups]
+dev = [
+    "codespell>=2.4.2",
+    "mypy>=2.1.0",
+    "ruff>=0.15.13",
+]

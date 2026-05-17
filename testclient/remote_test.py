@@ -1,10 +1,11 @@
-import vertexai
-from vertexai import agent_engines
-from typing import Iterator, Dict, Any
 import logging
 import asyncio
 import os
+
+import vertexai
 from dotenv import load_dotenv
+from vertexai import agent_engines
+
 # Load environment variables from image_scoring/.env
 env_path = os.path.join(os.path.dirname(__file__), "..", "image_scoring", ".env")
 load_dotenv(env_path)
@@ -17,7 +18,7 @@ async def call_agent_engine(
     staging_bucket: str,
     reasoning_engine_id: str,
     user_id: str = "user_123",
-) -> Iterator[Dict[str, Any]]:
+) -> None:
     """Initializes Vertex AI, gets a remote agent, creates a session, and streams a query.
 
     Args:

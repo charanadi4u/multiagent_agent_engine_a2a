@@ -31,13 +31,12 @@ async def generate_images(imagen_prompt: str, tool_context: ToolContext):
                 person_generation="allow_adult",
             ),
         )
-        generated_image_paths = []
         if response.generated_images is not None:
             for generated_image in response.generated_images:
                 # Get the image bytes
                 image_bytes = generated_image.image.image_bytes
                 counter = str(tool_context.state.get("loop_iteration", 0))
-                artifact_name = f"generated_image_" + counter + ".png"
+                artifact_name = "generated_image_" + counter + ".png"
                 local_path = save_to_local_file(tool_context, image_bytes, artifact_name)
 
                 # call save to gcs function

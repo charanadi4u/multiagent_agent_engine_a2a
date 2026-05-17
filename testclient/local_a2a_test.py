@@ -29,7 +29,7 @@ async def main() -> None:
             id=str(uuid.uuid4()),
             params=MessageSendParams(
                 message=Message(
-                    messageId=str(uuid.uuid4()),
+                    message_id=str(uuid.uuid4()),
                     role=Role.user,
                     parts=[Part(root=TextPart(text=args.prompt))],
                 )
