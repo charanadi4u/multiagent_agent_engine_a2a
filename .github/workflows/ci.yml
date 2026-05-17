@@ -2,169 +2,89 @@ name: CI
 
 on:
   push:
-    branches:
-      - "**"
+    branches: [ "main" ]
   pull_request:
-  workflow_dispatch:
-
-env:
-  PYTHON_VERSION: "3.11"
-  IMAGE_NAME: image-scoring-adk-a2a
+    branches: [ "main" ]
 
 jobs:
-  validate:
-    name: Validate Python
+  lint-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Authenticate to Google Cloud
+        # This allows tests to access Vertex AI
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+        run: uv sync --all-extras --frozen
 
-      - name: Compile source
-        run: |
-          python -m compileall image_scoring_adk_a2a_server testclient deploy
+      - name: Lint with ruff
+        run: uv run ruff check .
 
-      - name: Run tests when present
-        run: |
-          if find . -path "./.venv" -prune -o -name "test*.py" -print -quit | grep -q .; then
-            python -m pytest
-          else
-            echo "No pytest test files found; skipping tests."
-          fi
+      - name: Type check with mypy
+        run: uv run mypy .
 
-  docker:
-    name: Build and Publish Docker Image
+      - name: Check spelling with codespell
+        run: uv run codespell .
+
+      - name: Run unit tests
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
+          GOOGLE_CLOUD_STORAGE_BUCKET: ${{ secrets.GOOGLE_CLOUD_STORAGE_BUCKET }}
+        run: uv run pytest tests
+
+  deploy:
+    name: Deploy to Vertex AI
+    needs: lint-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: validate
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set image tags
-        id: meta
-        shell: bash
-        run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}"
-          echo "image=${IMAGE,,}" >> "$GITHUB_OUTPUT"
-          echo "sha_tag=${IMAGE,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "latest_tag=${IMAGE,,}:latest" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'master')
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: ${{ github.event_name == 'pull_request' || (github.ref_name != 'main' && github.ref_name != 'master') }}
-          push: ${{ github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'master') }}
-          tags: |
-            ${{ steps.meta.outputs.sha_tag }}
-            ${{ steps.meta.outputs.latest_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  deploy-agent-engine:
-    name: Deploy to Agent Engine
-    runs-on: ubuntu-latest
-    needs: validate
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master'))
-    env:
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-      GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION || 'us-central1' }}
-      GOOGLE_CLOUD_STORAGE_BUCKET: ${{ secrets.GOOGLE_CLOUD_STORAGE_BUCKET }}
-      GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check Google Cloud deployment configuration
-        id: gcp-config
-        shell: bash
-        run: |
-          STORAGE_BUCKET="${GOOGLE_CLOUD_STORAGE_BUCKET:-$GCS_BUCKET_NAME}"
-          if [[ -n "$GCP_PROJECT_ID" && -n "$GCP_SA_KEY" && -n "$STORAGE_BUCKET" ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "auth_mode=service_account_key" >> "$GITHUB_OUTPUT"
-          elif [[ -n "$GCP_PROJECT_ID" && -n "$GCP_WORKLOAD_IDENTITY_PROVIDER" && -n "$GCP_SERVICE_ACCOUNT" && -n "$STORAGE_BUCKET" ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "auth_mode=workload_identity" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping Agent Engine deploy. Configure GCP_PROJECT_ID, GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME, and either GCP_SA_KEY or GCP_WORKLOAD_IDENTITY_PROVIDER plus GCP_SERVICE_ACCOUNT secrets to enable it."
-          fi
-
-      - name: Authenticate to Google Cloud with service account key
-        if: steps.gcp-config.outputs.auth_mode == 'service_account_key'
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ env.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Authenticate to Google Cloud with Workload Identity
-        if: steps.gcp-config.outputs.auth_mode == 'workload_identity'
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
-
-      - name: Set up Google Cloud SDK
-        if: steps.gcp-config.outputs.enabled == 'true'
+      - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Set up Python
-        if: steps.gcp-config.outputs.enabled == 'true'
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        if: steps.gcp-config.outputs.enabled == 'true'
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+        run: uv sync --frozen
 
-      - name: Deploy with Vertex AI Agent Engine script
-        if: steps.gcp-config.outputs.enabled == 'true'
-        run: |
-          python deploy/deploy.py
-
-      - name: Print recent Agent Engine logs on failure
-        if: failure() && steps.gcp-config.outputs.enabled == 'true'
-        run: |
-          gcloud logging read \
-            'resource.type=("aiplatform.googleapis.com/ReasoningEngine" OR "aiplatform.googleapis.com/ReasoningEngineExecution")' \
-            --project="$GCP_PROJECT_ID" \
-            --limit=50 \
-            --format='value(timestamp,severity,textPayload,jsonPayload.message)'
+      - name: Deploy Agent
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
+          GOOGLE_CLOUD_STORAGE_BUCKET: ${{ secrets.GOOGLE_CLOUD_STORAGE_BUCKET }}
+        run: uv run deployment/deploy.py
