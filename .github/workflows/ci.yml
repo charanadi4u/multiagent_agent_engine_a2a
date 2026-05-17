@@ -93,3 +93,14 @@ jobs:
           GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION || 'us-central1' }}
           GOOGLE_CLOUD_STORAGE_BUCKET: ${{ secrets.GOOGLE_CLOUD_STORAGE_BUCKET || secrets.GCS_BUCKET_NAME }}
         run: uv run deploy/deploy.py
+
+      - name: Print Vertex AI logs on deploy failure
+        if: failure()
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT || secrets.GCP_PROJECT_ID }}
+        run: |
+          gcloud logging read \
+            'resource.type=("aiplatform.googleapis.com/ReasoningEngine" OR "aiplatform.googleapis.com/ReasoningEngineExecution")' \
+            --project="${GOOGLE_CLOUD_PROJECT:-$GCP_PROJECT}" \
+            --limit=50 \
+            --format='value(timestamp,severity,textPayload,jsonPayload.message)'

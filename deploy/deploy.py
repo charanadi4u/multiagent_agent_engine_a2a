@@ -47,7 +47,13 @@ remote_app = client.agent_engines.create(
         "extra_packages": [
             str(PACKAGE_DIR),
         ],
-        "env_vars": {"GCS_BUCKET_NAME": STORAGE_BUCKET},
+        "env_vars": {
+            "GCP_PROJECT": PROJECT_ID,
+            "GOOGLE_CLOUD_PROJECT": PROJECT_ID,
+            "GOOGLE_CLOUD_LOCATION": LOCATION,
+            "GOOGLE_CLOUD_STORAGE_BUCKET": STORAGE_BUCKET,
+            "GCS_BUCKET_NAME": STORAGE_BUCKET,
+        },
     }
 )
 
