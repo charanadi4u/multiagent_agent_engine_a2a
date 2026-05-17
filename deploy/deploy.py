@@ -16,8 +16,12 @@ from image_scoring.agent import root_agent  # noqa: E402
 # Load local environment variables when running outside CI.
 load_dotenv(PACKAGE_DIR / ".env")
 
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
-LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+PROJECT_ID = (
+    os.getenv("GOOGLE_CLOUD_PROJECT")
+    or os.getenv("GCP_PROJECT")
+    or os.getenv("CLOUDSDK_CORE_PROJECT")
+)
+LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION") or "us-central1"
 STORAGE_BUCKET = os.getenv("GOOGLE_CLOUD_STORAGE_BUCKET") or os.getenv("GCS_BUCKET_NAME")
 STAGING_BUCKET = f"gs://{STORAGE_BUCKET}" if STORAGE_BUCKET else None
 
