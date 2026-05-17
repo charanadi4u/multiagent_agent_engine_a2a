@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import vertexai
+import vertexai.agent_engines
 from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
