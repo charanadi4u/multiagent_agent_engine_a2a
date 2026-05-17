@@ -1,14 +1,43 @@
 import logging
 import asyncio
 import os
+from pathlib import Path
 
 import vertexai
 from dotenv import load_dotenv
+from google.oauth2 import service_account
 from vertexai import agent_engines
 
-# Load environment variables from image_scoring/.env
-env_path = os.path.join(os.path.dirname(__file__), "..", "image_scoring", ".env")
-load_dotenv(env_path)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+AGENT_ENV_PATH = (
+    REPO_ROOT
+    / "image_scoring_adk_a2a_server"
+    / "remote_a2a"
+    / "image_scoring"
+    / ".env"
+)
+
+# Load environment variables from the local agent .env, if present.
+load_dotenv(AGENT_ENV_PATH)
+
+AUTH_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+def get_credentials():
+    credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not credentials_path:
+        return None
+
+    key_file = Path(credentials_path)
+    if not key_file.exists():
+        raise FileNotFoundError(
+            f"GOOGLE_APPLICATION_CREDENTIALS points to a missing file: {key_file}"
+        )
+
+    return service_account.Credentials.from_service_account_file(
+        key_file,
+        scopes=AUTH_SCOPES,
+    )
 
 
 async def call_agent_engine(
@@ -36,6 +65,7 @@ async def call_agent_engine(
         project=project_id,
         location=location,
         staging_bucket=staging_bucket,
+        credentials=get_credentials(),
     )
 
     # Create a session service client
@@ -63,7 +93,7 @@ def get_agent_engine_list(project_id,location,staging_bucket):
 
 
 
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or "charan-245405"
 LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 STAGING_BUCKET = f"gs://{os.getenv('GOOGLE_CLOUD_STORAGE_BUCKET')}"
 
@@ -71,10 +101,13 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
-    REASONING_ENGINE_ID = "projects/xxx/locations/us-central1/reasoningEngines/xxx"  # TODO: Change this
+    REASONING_ENGINE_ID = os.getenv(
+        "REASONING_ENGINE_ID",
+        "projects/xxx/locations/us-central1/reasoningEngines/xxx",
+    )
     #REASONING_ENGINE_ID="projects/85469421903/locations/us-central1/reasoningEngines/428031080600174592"
 
-    prompt = "Create image of a cat"
+    prompt = os.getenv("AGENT_TEST_PROMPT", "Create image of a cat")
 
     #engines=get_agent_engine_list(PROJECT_ID,LOCATION,STAGING_BUCKET)
     #REASONING_ENGINE_ID=engines[0].resource_name
