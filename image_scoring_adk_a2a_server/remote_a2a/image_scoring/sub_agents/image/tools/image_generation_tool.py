@@ -6,22 +6,27 @@ from google.adk.tools import ToolContext
 from google.cloud import storage
 from .... import config
 import logging
+from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-client = genai.Client(
-    vertexai=True
-)
+@lru_cache(maxsize=1)
+def get_genai_client() -> genai.Client:
+    return genai.Client(
+        vertexai=True,
+        project=config.APP_VERTEX_PROJECT,
+        location=config.APP_VERTEX_LOCATION,
+    )
 
 
 async def generate_images(imagen_prompt: str, tool_context: ToolContext):
 
     try:
 
-        response = client.models.generate_images(
+        response = get_genai_client().models.generate_images(
             model="imagen-3.0-generate-002",
             prompt=imagen_prompt,
             config=types.GenerateImagesConfig(

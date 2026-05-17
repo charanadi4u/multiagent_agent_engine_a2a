@@ -48,6 +48,8 @@ remote_app = client.agent_engines.create(
             str(PACKAGE_DIR),
         ],
         "env_vars": {
+            "APP_VERTEX_PROJECT": PROJECT_ID,
+            "APP_VERTEX_LOCATION": LOCATION,
             "GCS_BUCKET_NAME": STORAGE_BUCKET,
         },
     }
