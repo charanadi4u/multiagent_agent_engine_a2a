@@ -124,8 +124,6 @@ remote_app = client.agent_engines.create(
         ],
         "env_vars": {
             "GOOGLE_GENAI_USE_VERTEXAI": "TRUE",
-            "GOOGLE_CLOUD_PROJECT": PROJECT_ID,
-            "GOOGLE_CLOUD_LOCATION": LOCATION,
             "APP_VERTEX_PROJECT": PROJECT_ID,
             "APP_VERTEX_LOCATION": LOCATION,
             "GCS_BUCKET_NAME": STORAGE_BUCKET,
