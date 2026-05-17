@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_ROOT = REPO_ROOT / "image_scoring_adk_a2a_server" / "remote_a2a"
 PACKAGE_DIR = AGENTS_ROOT / "image_scoring"
+DIST_DIR = REPO_ROOT / "dist"
 
 sys.path.insert(0, str(AGENTS_ROOT))
 
@@ -32,6 +33,12 @@ if not STAGING_BUCKET:
         "GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME is required to deploy to Agent Engine."
     )
 
+wheel_files = sorted(DIST_DIR.glob("image_scoring-*.whl"))
+if not wheel_files:
+    raise RuntimeError("No image_scoring wheel found. Run `uv build --wheel` before deploy.")
+wheel_path = wheel_files[-1]
+wheel_requirement = f"./dist/{wheel_path.name}"
+
 client = vertexai.Client(
     project=PROJECT_ID,
     location=LOCATION,
@@ -43,9 +50,10 @@ remote_app = client.agent_engines.create(
     config={
         "display_name": "image-scoring",
         "staging_bucket": STAGING_BUCKET,
-        "requirements": (REPO_ROOT / "requirements.txt").read_text().splitlines(),
+        "requirements": (REPO_ROOT / "requirements.txt").read_text().splitlines()
+        + [wheel_requirement],
         "extra_packages": [
-            str(PACKAGE_DIR),
+            str(wheel_path),
         ],
         "env_vars": {
             "APP_VERTEX_PROJECT": PROJECT_ID,

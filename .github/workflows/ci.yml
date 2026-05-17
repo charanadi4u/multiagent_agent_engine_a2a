@@ -87,6 +87,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Build package wheel
+        run: uv build --wheel
+
       - name: Deploy Agent
         env:
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT || secrets.GCP_PROJECT_ID }}
