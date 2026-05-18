@@ -34,19 +34,18 @@ STORAGE_BUCKET = (
     or os.getenv("GCS_BUCKET_NAME")
 )
 
-STAGING_BUCKET = f"gs://{STORAGE_BUCKET}" if STORAGE_BUCKET else None
-
-
 if not PROJECT_ID:
     raise RuntimeError(
         "GOOGLE_CLOUD_PROJECT is required to deploy to Agent Engine."
     )
 
-if not STAGING_BUCKET:
+if not STORAGE_BUCKET:
     raise RuntimeError(
         "GOOGLE_CLOUD_STORAGE_BUCKET or GCS_BUCKET_NAME is required "
         "to deploy to Agent Engine."
     )
+
+STAGING_BUCKET = f"gs://{STORAGE_BUCKET}"
 
 
 # Find the latest built wheel.
