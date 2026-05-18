@@ -80,6 +80,7 @@ required_runtime_packages = [
     "google-cloud-aiplatform[adk,agent_engines]",
     "google-adk",
     "python-dotenv",
+    "gcsfs",
 ]
 
 for package in required_runtime_packages:
@@ -98,9 +99,10 @@ print(f"STAGING_BUCKET  = {STAGING_BUCKET}")
 print(f"WHEEL           = {wheel_requirement}")
 
 
-client = vertexai.Client(
+vertexai.init(
     project=PROJECT_ID,
     location=LOCATION,
+    staging_bucket=STAGING_BUCKET,
 )
 
 
@@ -113,21 +115,16 @@ app = vertexai.agent_engines.AdkApp(
 )
 
 
-remote_app = client.agent_engines.create(
-    agent=app,
-    config={
-        "display_name": "image-scoring",
-        "staging_bucket": STAGING_BUCKET,
-        "requirements": requirements,
-        "extra_packages": [
-            wheel_requirement,
-        ],
-        "env_vars": {
-            "GOOGLE_GENAI_USE_VERTEXAI": "TRUE",
-            "APP_VERTEX_PROJECT": PROJECT_ID,
-            "APP_VERTEX_LOCATION": LOCATION,
-            "GCS_BUCKET_NAME": STORAGE_BUCKET,
-        },
+remote_app = vertexai.agent_engines.create(
+    agent_engine=app,
+    display_name="image-scoring",
+    requirements=requirements,
+    extra_packages=[wheel_requirement],
+    env_vars={
+        "GOOGLE_GENAI_USE_VERTEXAI": "TRUE",
+        "APP_VERTEX_PROJECT": PROJECT_ID,
+        "APP_VERTEX_LOCATION": LOCATION,
+        "GCS_BUCKET_NAME": STORAGE_BUCKET,
     },
 )
 

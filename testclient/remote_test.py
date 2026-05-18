@@ -263,7 +263,7 @@ if __name__ == "__main__":
 
     REASONING_ENGINE_ID = os.getenv(
         "REASONING_ENGINE_ID",
-        "projects/787533364278/locations/us-central1/reasoningEngines/5152325231653683200",
+        "projects/787533364278/locations/us-central1/reasoningEngines/8946889392690036736",
     )
 
     # Alternative Agent Engine example:
@@ -272,8 +272,9 @@ if __name__ == "__main__":
     #     "reasoningEngines/428031080600174592"
     # )
 
-    prompt = os.getenv("AGENT_TEST_PROMPT", "Create image of a cat")
-
+    #prompt = os.getenv("AGENT_TEST_PROMPT", "Create image of a dog riding a Royal Enfield bike in a race")
+    prompt = "Create image of a dog riding a Royal Enfield bike in a race"
+    
     try:
         asyncio.run(
             call_agent_engine(
